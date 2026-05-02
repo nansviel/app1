@@ -1,19 +1,15 @@
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-// Créez un compte gratuit sur https://account.mapbox.com/ → Access tokens
-const MAPBOX_TOKEN = 'VOTRE_TOKEN_MAPBOX_ICI';
+// Aucun token nécessaire — MapLibre GL JS + OpenFreeMap (100% gratuit & open source)
 
 const PARIS = { lat: 48.8566, lng: 2.3522 };
-
-// Zone de calcul des ombres (~2 km² autour du centre)
 const SHADOW_BBOX = { minLat: 48.845, minLng: 2.330, maxLat: 48.870, maxLng: 2.375 };
 
 // ─── MAP ───────────────────────────────────────────────────────────────────
 
-mapboxgl.accessToken = MAPBOX_TOKEN;
-
-const map = new mapboxgl.Map({
+const map = new maplibregl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/streets-v12',
+  // Tuiles OpenFreeMap — open source, pas de compte requis
+  style: 'https://tiles.openfreemap.org/styles/liberty',
   center: [PARIS.lng, PARIS.lat],
   zoom: 15,
   pitch: 45,
@@ -21,7 +17,7 @@ const map = new mapboxgl.Map({
   antialias: true,
 });
 
-map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 
 // ─── STATE ──────────────────────────────────────────────────────────────────
 
@@ -39,8 +35,8 @@ function getSunInfo(date) {
   return { altitudeDeg, bearing };
 }
 
-function bearingToMapboxAzimuthal(bearing) {
-  // Mapbox azimuthal: 0=East, counterclockwise
+function bearingToMapLibreAzimuthal(bearing) {
+  // MapLibre azimuthal: 0=East, counterclockwise
   return (90 - bearing + 360) % 360;
 }
 
@@ -56,28 +52,23 @@ function lightParams(alt) {
 }
 
 // ─── SHADOW GEOMETRY ────────────────────────────────────────────────────────
-// Pour chaque bâtiment on translate son empreinte selon le vecteur d'ombre
-// (direction opposée au soleil, longueur = hauteur / tan(altitude))
 
 function computeShadowGeoJSON(altDeg, bearingDeg) {
   const empty = { type: 'FeatureCollection', features: [] };
   if (altDeg < 2 || cachedBuildings.length === 0) return empty;
 
   const altRad = altDeg * Math.PI / 180;
-  // Ombre dans la direction OPPOSÉE au soleil
   const shadowBearingRad = ((bearingDeg + 180) % 360) * Math.PI / 180;
-  const MAX_SHADOW_M = 250; // cap à 250 m (soleil très bas → ombres infinies sinon)
+  const MAX_SHADOW_M = 250;
 
   const features = cachedBuildings.map(({ coords, height }) => {
     const shadowLen = Math.min(MAX_SHADOW_M, height / Math.tan(altRad));
-    const refLat   = coords[0][1];
-    const mPerLng  = 111111 * Math.cos(refLat * Math.PI / 180);
-
+    const refLat    = coords[0][1];
+    const mPerLng   = 111111 * Math.cos(refLat * Math.PI / 180);
     const dLat = (shadowLen * Math.cos(shadowBearingRad)) / 111111;
     const dLng = (shadowLen * Math.sin(shadowBearingRad)) / mPerLng;
 
     const shadow = coords.map(([lng, lat]) => [lng + dLng, lat + dLat]);
-
     return {
       type: 'Feature',
       geometry: { type: 'Polygon', coordinates: [shadow] },
@@ -97,17 +88,15 @@ function applyLight(date) {
 
   map.setLight({
     anchor: 'map',
-    position: [1.5, bearingToMapboxAzimuthal(bearing), polar],
+    position: [1.5, bearingToMapLibreAzimuthal(bearing), polar],
     color,
     intensity,
   });
 
-  // Overlay jaune visible uniquement de jour
   if (map.getLayer('sunny-overlay')) {
     map.setPaintProperty('sunny-overlay', 'fill-opacity', altitudeDeg > 2 ? 0.20 : 0);
   }
 
-  // Mise à jour des polygones d'ombre
   if (map.getSource('shadows')) {
     map.getSource('shadows').setData(computeShadowGeoJSON(altitudeDeg, bearing));
   }
@@ -125,9 +114,9 @@ function updatePanel(date, altitudeDeg, bearing) {
     `${getCardinal(bearing)} · ${bearing.toFixed(0)}°`;
 
   const badge = document.getElementById('sun-status');
-  if (altitudeDeg < 0)     { badge.textContent = '🌙 Nuit';         badge.className = 'badge night';  }
-  else if (altitudeDeg < 6){ badge.textContent = '🌅 Heure dorée';  badge.className = 'badge golden'; }
-  else                      { badge.textContent = '☀️ Soleil';       badge.className = 'badge day';    }
+  if (altitudeDeg < 0)      { badge.textContent = '🌙 Nuit';        badge.className = 'badge night';  }
+  else if (altitudeDeg < 6) { badge.textContent = '🌅 Heure dorée'; badge.className = 'badge golden'; }
+  else                       { badge.textContent = '☀️ Soleil';      badge.className = 'badge day';    }
 
   const needle = document.getElementById('c-needle');
   needle.style.transform = altitudeDeg > 0
@@ -136,7 +125,7 @@ function updatePanel(date, altitudeDeg, bearing) {
   needle.style.opacity = altitudeDeg > 0 ? '1' : '0.3';
 }
 
-// ─── LOAD BUILDINGS FOR SHADOW CALC (Overpass) ─────────────────────────────
+// ─── LOAD BUILDINGS (Overpass OSM) ──────────────────────────────────────────
 
 async function loadBuildings() {
   const { minLat, minLng, maxLat, maxLng } = SHADOW_BBOX;
@@ -157,27 +146,26 @@ async function loadBuildings() {
         coords: el.geometry.map(pt => [pt.lon, pt.lat]),
         height: parseFloat(el.tags?.height)
           || (parseInt(el.tags?.['building:levels']) * 3.5)
-          || 15, // hauteur par défaut Paris ~15 m
+          || 15,
       }));
 
-    // Recalculer les ombres maintenant que les bâtiments sont chargés
     const { altitudeDeg, bearing } = getSunInfo(simDate);
     if (map.getSource('shadows')) {
       map.getSource('shadows').setData(computeShadowGeoJSON(altitudeDeg, bearing));
     }
   } catch (err) {
-    console.warn('[SoleilParis] Erreur chargement bâtiments:', err);
+    console.warn('[SoleilParis] Erreur bâtiments:', err);
   }
 }
 
 // ─── MAP LOAD ────────────────────────────────────────────────────────────────
 
 map.on('load', () => {
-  // Insertion avant la première couche de labels pour rester sous le texte
+  // Insertion avant les labels pour rester lisible
   const firstSymbol = map.getStyle().layers.find(l => l.type === 'symbol')?.id;
 
-  // 1. Overlay jaune (zones ensoleillées)
-  const bboxPolygon = {
+  // 1. Overlay jaune — zones ensoleillées
+  const bboxPoly = {
     type: 'Feature',
     geometry: {
       type: 'Polygon',
@@ -190,15 +178,15 @@ map.on('load', () => {
       ]]
     }
   };
-  map.addSource('sunny-area', { type: 'geojson', data: bboxPolygon });
+  map.addSource('sunny-area', { type: 'geojson', data: bboxPoly });
   map.addLayer({
     id: 'sunny-overlay',
     type: 'fill',
     source: 'sunny-area',
-    paint: { 'fill-color': '#FFE566', 'fill-opacity': 0 }, // opacity gérée dynamiquement
+    paint: { 'fill-color': '#FFE566', 'fill-opacity': 0 },
   }, firstSymbol);
 
-  // 2. Couche ombres gris clair
+  // 2. Polygones d'ombre — gris clair
   map.addSource('shadows', {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] }
@@ -207,27 +195,24 @@ map.on('load', () => {
     id: 'shadow-layer',
     type: 'fill',
     source: 'shadows',
-    paint: {
-      'fill-color': '#b8c4cc',
-      'fill-opacity': 0.60,
-    },
+    paint: { 'fill-color': '#b8c4cc', 'fill-opacity': 0.60 },
   }, firstSymbol);
 
-  // 3. Bâtiments 3D (par-dessus les ombres)
+  // 3. Bâtiments 3D (OpenMapTiles schema : render_height)
   map.addLayer({
     id: '3d-buildings',
-    source: 'composite',
+    source: 'openmaptiles',
     'source-layer': 'building',
-    filter: ['==', 'extrude', 'true'],
     type: 'fill-extrusion',
     minzoom: 14,
     paint: {
       'fill-extrusion-color': [
-        'interpolate', ['linear'], ['get', 'height'],
+        'interpolate', ['linear'],
+        ['coalesce', ['get', 'render_height'], 10],
         0, '#ede5d0', 30, '#d8cdb4', 80, '#c4b496',
       ],
-      'fill-extrusion-height':  ['get', 'height'],
-      'fill-extrusion-base':    ['get', 'min_height'],
+      'fill-extrusion-height':  ['coalesce', ['get', 'render_height'], 10],
+      'fill-extrusion-base':    ['coalesce', ['get', 'render_min_height'], 0],
       'fill-extrusion-opacity': 0.92,
     },
   });
@@ -287,34 +272,27 @@ async function loadPOIs() {
   map.addSource('pois', { type: 'geojson', data: { type: 'FeatureCollection', features } });
 
   map.addLayer({
-    id: 'pois-glow',
-    type: 'circle',
-    source: 'pois',
+    id: 'pois-glow', type: 'circle', source: 'pois',
     paint: {
       'circle-radius': 15,
       'circle-color': ['match', ['get', 'amenity'], 'restaurant', '#ff6b35', 'bar', '#9b59b6', '#27ae60'],
-      'circle-opacity': 0.18,
-      'circle-blur': 1,
+      'circle-opacity': 0.18, 'circle-blur': 1,
     },
   });
 
   map.addLayer({
-    id: 'pois-layer',
-    type: 'circle',
-    source: 'pois',
+    id: 'pois-layer', type: 'circle', source: 'pois',
     paint: {
       'circle-radius': 7,
       'circle-color': ['match', ['get', 'amenity'], 'restaurant', '#ff6b35', 'bar', '#9b59b6', '#27ae60'],
-      'circle-stroke-width': 2,
-      'circle-stroke-color': '#ffffff',
-      'circle-opacity': 0.95,
+      'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff', 'circle-opacity': 0.95,
     },
   });
 
   map.on('click', 'pois-layer', e => {
     const f = e.features[0];
     const p = f.properties;
-    new mapboxgl.Popup({ offset: 12, maxWidth: '230px' })
+    new maplibregl.Popup({ offset: 12, maxWidth: '230px' })
       .setLngLat(f.geometry.coordinates.slice())
       .setHTML(`
         <div class="popup-content">
