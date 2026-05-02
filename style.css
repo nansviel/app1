@@ -1,0 +1,259 @@
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Panel ─────────────────────────────────────────────────────────────────── */
+
+#panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 270px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+#panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+  letter-spacing: -0.3px;
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+.badge.day    { background: #fff3cd; color: #7d5a00; }
+.badge.golden { background: #ffe0cc; color: #b94400; }
+.badge.night  { background: #dce8ff; color: #1a4faa; }
+
+/* ── Sun info ──────────────────────────────────────────────────────────────── */
+
+#sun-info {
+  background: #f7f5f1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: #555;
+}
+
+.info-row strong {
+  color: #1a1a2e;
+  font-weight: 600;
+}
+
+/* ── Compass ───────────────────────────────────────────────────────────────── */
+
+.compass-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.compass {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border: 2px solid #e0dcd4;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fafaf8, #f0ece4);
+}
+
+.c-label {
+  position: absolute;
+  font-size: 10px;
+  font-weight: 700;
+  color: #999;
+}
+.c-label.n { top: 3px;   left: 50%; transform: translateX(-50%); }
+.c-label.s { bottom: 3px; left: 50%; transform: translateX(-50%); }
+.c-label.e { right: 5px; top: 50%;  transform: translateY(-50%); }
+.c-label.o { left: 5px;  top: 50%;  transform: translateY(-50%); }
+
+.c-needle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  background: #ff6b35;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px white, 0 0 6px rgba(255, 107, 53, 0.6);
+  transition: transform 1s ease;
+}
+
+.c-needle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 24px;
+  background: linear-gradient(to top, transparent, #ff6b35);
+  transform-origin: bottom center;
+  transform: translate(-50%, -100%);
+  border-radius: 2px;
+}
+
+.compass-hint {
+  font-size: 10px;
+  color: #aaa;
+  text-align: center;
+}
+
+/* ── Controls ──────────────────────────────────────────────────────────────── */
+
+#controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#controls label {
+  font-size: 11.5px;
+  color: #777;
+}
+
+#time-slider {
+  width: 100%;
+  cursor: pointer;
+  accent-color: #ff6b35;
+  height: 4px;
+}
+
+.ctrl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slider-time-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+#live-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: none;
+  background: #eee;
+  color: #777;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+#live-btn.active {
+  background: #ff6b35;
+  color: #fff;
+}
+
+/* ── Legend ────────────────────────────────────────────────────────────────── */
+
+#legend {
+  border-top: 1px solid #ece9e3;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.legend-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #444;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+
+/* ── Popup ─────────────────────────────────────────────────────────────────── */
+
+.mapboxgl-popup-content {
+  border-radius: 10px !important;
+  padding: 12px 14px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  min-width: 160px;
+}
+
+.popup-content h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 5px;
+}
+
+.popup-content p {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 3px;
+}
+
+.popup-content .type {
+  font-weight: 600;
+  color: #444;
+  text-transform: capitalize;
+}
+
+.popup-content .terrace-badge {
+  margin-top: 5px;
+  font-weight: 600;
+  color: #27ae60;
+}

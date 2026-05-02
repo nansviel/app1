@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoleilParis ☀️</title>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="panel">
+    <div id="panel-header">
+      <span class="logo">☀️ SoleilParis</span>
+      <span id="sun-status" class="badge day">Chargement…</span>
+    </div>
+
+    <div id="sun-info">
+      <div class="info-row">
+        <span>Heure</span>
+        <strong id="time-display">--:--</strong>
+      </div>
+      <div class="info-row">
+        <span>Altitude soleil</span>
+        <strong id="sun-altitude">--</strong>
+      </div>
+      <div class="info-row">
+        <span>Direction</span>
+        <strong id="sun-direction">--</strong>
+      </div>
+    </div>
+
+    <div class="compass-wrap">
+      <div class="compass" id="compass">
+        <span class="c-label n">N</span>
+        <span class="c-label e">E</span>
+        <span class="c-label s">S</span>
+        <span class="c-label o">O</span>
+        <div class="c-needle" id="c-needle"></div>
+      </div>
+      <p class="compass-hint">Direction du soleil</p>
+    </div>
+
+    <div id="controls">
+      <label>Simuler une heure :</label>
+      <input type="range" id="time-slider" min="5" max="22" step="0.25">
+      <div class="ctrl-row">
+        <span id="slider-time" class="slider-time-label">--:--</span>
+        <button id="live-btn" class="active">🔴 Temps réel</button>
+      </div>
+    </div>
+
+    <div id="legend">
+      <div class="legend-title">Terrasses extérieures</div>
+      <div class="legend-item"><span class="dot" style="background:#ff6b35"></span>Restaurant</div>
+      <div class="legend-item"><span class="dot" style="background:#9b59b6"></span>Bar</div>
+      <div class="legend-item"><span class="dot" style="background:#27ae60"></span>Café</div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
