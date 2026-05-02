@@ -2,7 +2,7 @@
 // Aucun token nécessaire — MapLibre GL JS + OpenFreeMap (100% gratuit & open source)
 
 const PARIS = { lat: 48.8566, lng: 2.3522 };
-const SHADOW_BBOX = { minLat: 48.845, minLng: 2.330, maxLat: 48.870, maxLng: 2.375 };
+const SHADOW_BBOX = { minLat: 48.838, minLng: 2.318, maxLat: 48.878, maxLng: 2.388 };
 
 // ─── MAP ───────────────────────────────────────────────────────────────────
 
@@ -11,9 +11,9 @@ const map = new maplibregl.Map({
   // Tuiles OpenFreeMap — open source, pas de compte requis
   style: 'https://tiles.openfreemap.org/styles/liberty',
   center: [PARIS.lng, PARIS.lat],
-  zoom: 15,
-  pitch: 45,
-  bearing: -15,
+  zoom: 15.5,
+  pitch: 30,
+  bearing: -10,
   antialias: true,
 });
 
@@ -52,14 +52,25 @@ function lightParams(alt) {
 }
 
 // ─── SHADOW GEOMETRY ────────────────────────────────────────────────────────
+// L'ombre au sol = balayage continu de l'empreinte vers sa projection :
+//   anneau = empreinte originale (sens horaire) + empreinte projetée (sens anti-horaire)
+// → couvre le sol depuis le pied du mur jusqu'au bout de l'ombre, sans trou.
+
+function buildShadowRing(coords, dLng, dLat) {
+  const projected = coords.map(([lng, lat]) => [lng + dLng, lat + dLat]);
+  // Aller sur l'original, revenir sur le projeté (inversé) → polygone fermé continu
+  const ring = [...coords, ...projected.slice().reverse()];
+  ring.push(ring[0]);
+  return ring;
+}
 
 function computeShadowGeoJSON(altDeg, bearingDeg) {
   const empty = { type: 'FeatureCollection', features: [] };
   if (altDeg < 2 || cachedBuildings.length === 0) return empty;
 
-  const altRad = altDeg * Math.PI / 180;
+  const altRad          = altDeg * Math.PI / 180;
   const shadowBearingRad = ((bearingDeg + 180) % 360) * Math.PI / 180;
-  const MAX_SHADOW_M = 250;
+  const MAX_SHADOW_M    = 160; // cap à ~160 m (crédible jusqu'à ~10° d'altitude)
 
   const features = cachedBuildings.map(({ coords, height }) => {
     const shadowLen = Math.min(MAX_SHADOW_M, height / Math.tan(altRad));
@@ -68,10 +79,9 @@ function computeShadowGeoJSON(altDeg, bearingDeg) {
     const dLat = (shadowLen * Math.cos(shadowBearingRad)) / 111111;
     const dLng = (shadowLen * Math.sin(shadowBearingRad)) / mPerLng;
 
-    const shadow = coords.map(([lng, lat]) => [lng + dLng, lat + dLat]);
     return {
       type: 'Feature',
-      geometry: { type: 'Polygon', coordinates: [shadow] },
+      geometry: { type: 'Polygon', coordinates: [buildShadowRing(coords, dLng, dLat)] },
       properties: {}
     };
   });
@@ -94,7 +104,7 @@ function applyLight(date) {
   });
 
   if (map.getLayer('sunny-overlay')) {
-    map.setPaintProperty('sunny-overlay', 'fill-opacity', altitudeDeg > 2 ? 0.20 : 0);
+    map.setPaintProperty('sunny-overlay', 'fill-opacity', altitudeDeg > 2 ? 0.38 : 0);
   }
 
   if (map.getSource('shadows')) {
@@ -183,10 +193,11 @@ map.on('load', () => {
     id: 'sunny-overlay',
     type: 'fill',
     source: 'sunny-area',
-    paint: { 'fill-color': '#FFE566', 'fill-opacity': 0 },
+    // Jaune franc, bien visible — opacity gérée dynamiquement dans applyLight()
+    paint: { 'fill-color': '#FFD700', 'fill-opacity': 0 },
   }, firstSymbol);
 
-  // 2. Polygones d'ombre — gris clair
+  // 2. Polygones d'ombre — gris bleuté opaque
   map.addSource('shadows', {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] }
@@ -195,7 +206,8 @@ map.on('load', () => {
     id: 'shadow-layer',
     type: 'fill',
     source: 'shadows',
-    paint: { 'fill-color': '#b8c4cc', 'fill-opacity': 0.60 },
+    // Couvre clairement les zones à l'ombre (rues, trottoirs, terrasses)
+    paint: { 'fill-color': '#8090a0', 'fill-opacity': 0.72 },
   }, firstSymbol);
 
   // 3. Bâtiments 3D (OpenMapTiles schema : render_height)
