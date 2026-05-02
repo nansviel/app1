@@ -223,6 +223,14 @@ body {
   flex-shrink: 0;
 }
 
+.legend-swatch {
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
 /* ── Popup ─────────────────────────────────────────────────────────────────── */
 
 .mapboxgl-popup-content {
